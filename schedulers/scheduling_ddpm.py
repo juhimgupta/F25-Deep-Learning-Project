@@ -13,11 +13,11 @@ class DDPMScheduler(nn.Module):
         self,
         num_train_timesteps: int = 1000,
         num_inference_steps: Optional[int] = None,
-        beta_start: float = 0.0001,
-        beta_end: float = 0.02,
+        beta_start: float = 0.0001, #define minimum noise that can be added at each timestep
+        beta_end: float = 0.02, #defines maximum noise that can be added at each timestep
         beta_schedule: str = 'linear',
         variance_type: str = "fixed_small",
-        prediction_type: str = 'epsilon',
+        prediction_type: str = 'epsilon', 
         clip_sample: bool = True,
         clip_sample_range: float = 1.0,
     ):
@@ -43,18 +43,18 @@ class DDPMScheduler(nn.Module):
         # TODO: calculate betas
         if self.beta_schedule == 'linear':
             # This is the DDPM implementation
-            betas = None
+            betas = torch.linspace(self.beta_start, self.beta_end, self.num_train_timesteps)
         self.register_buffer("betas", betas)
          
         # TODO: calculate alphas
-        alphas = None 
+        alphas = 1 - betas
         self.register_buffer("alphas", alphas)
         # TODO: calculate alpha cumulative product
-        alphas_cumprod = None 
+        alphas_cumprod = torch.cumprod(alphas, dim=0) 
         self.register_buffer("alphas_cumprod", alphas_cumprod)
         
         # TODO: timesteps
-        timesteps = None
+        timesteps = torch.arange(0, self.num_train_timesteps)
         self.register_buffer("timesteps", timesteps)
         
 
@@ -226,17 +226,18 @@ class DDPMScheduler(nn.Module):
         prev_t = self.previous_timestep(t)
         
         # TODO: 1. compute alphas, betas
-        alpha_prod_t = None 
-        alpha_prod_t_prev = None 
-        beta_prod_t = None 
-        beta_prod_t_prev = None 
-        current_alpha_t = None 
-        current_beta_t = None 
-        
+        #alphas control how much of the original data is kept at each timestep
+        alpha_prod_t = self.alphas_cumprod[t] 
+        alpha_prod_t_prev = self.alphas_cumprod[prev_t] 
+        beta_prod_t = 1 - (alpha_prod_t / alpha_prod_t_prev) 
+        beta_prod_t_prev = 1 - alpha_prod_t_prev 
+        current_alpha_t = alpha_prod_t 
+        current_beta_t = beta_prod_t 
+
         # TODO: 2. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
         if self.prediction_type == 'epsilon':
-            pred_original_sample = None 
+            pred_original_sample = (sample - (1 - current_alpha_t).sqrt()*model_output) / (current_alpha_t).sqrt()
         else:
             raise NotImplementedError(f"Prediction type {self.prediction_type} not implemented.")
 
@@ -248,12 +249,12 @@ class DDPMScheduler(nn.Module):
 
         # TODO: 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
-        pred_original_sample_coeff = None 
-        current_sample_coeff = None 
+        pred_original_sample_coeff = ((alpha_prod_t_prev).sqrt() * current_beta_t)/ (1 - alpha_prod_t)
+        current_sample_coeff = (alpha_prod_t.sqrt() * (1 - alpha_prod_t_prev)) / (1 - alpha_prod_t)
 
         # 5. Compute predicted previous sample µ_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
-        pred_prev_sample = None 
+        pred_prev_sample = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * sample
 
 
         # 6. Add noise
@@ -264,9 +265,9 @@ class DDPMScheduler(nn.Module):
                 model_output.shape, generator=generator, device=device, dtype=model_output.dtype
             )
             # TODO: use self,get_variance and variance_noise
-            variance = None 
+            variance = self._get_variance(t) * variance_noise 
         
         # TODO: add variance to prev_sample
-        pred_prev_sample = None 
-        
+        pred_prev_sample = pred_prev_sample + variance
+
         return pred_prev_sample
