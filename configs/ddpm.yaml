@@ -1,3 +1,10 @@
+# sampler selection
+use_ddim: true # false --> DDPM; true --> DDIM
+eta: 0.0 # DDIM noise control; 0 is totally deterministic.
+# scheduler/model
+clip_sample: true
+clip_sample_range: 1.0
+
 run_name: ddpm
 seed: 42
 data_dir: ./data
@@ -9,7 +16,7 @@ num_epochs: 50
 learning_rate: 1e-3
 weight_decay: 0.1
 num_train_timesteps: #train timesteps
-num_inference_steps: #INFERENCE_TIMESTEPS
+num_inference_steps: 50
 beta_start: #BETA START
 beta_end: #BETA END
 beta_schedule: #BETA SCHEDULE

@@ -87,10 +87,11 @@ class DDPMPipeline:
             uncond_embeds = None 
         
         # TODO: starts with random noise
-        image = None # randn_tensor(image_shape, generator=generator, device=device)
+        image =  randn_tensor(image_shape, generator=generator, device=device)
 
         # TODO: set step values using set_timesteps of scheduler
-        self.scheduler = None
+        # self.scheduler = None
+        self.scheduler.set_timesteps(num_inference_steps) # For DDIM, num_inference_steps should be the reduced step count.
         
         # TODO: inverse diffusion process with for loop
         for t in self.progress_bar(self.scheduler.timesteps):
