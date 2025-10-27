@@ -183,13 +183,13 @@ class DDPMScheduler(nn.Module):
         
         # TODO: get sqrt alphas
         sqrt_alpha_prod = alphas_cumprod[timesteps].sqrt()
-        sqrt_alpha_prod = None 
+        #sqrt_alpha_prod = None 
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
             sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
             
         # TODO: get sqrt one miucs alphas
         sqrt_one_minus_alpha_prod = (1 - sqrt_alpha_prod).sqrt()
-        sqrt_one_minus_alpha_prod = None 
+        #sqrt_one_minus_alpha_prod = None 
         while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
             sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         
