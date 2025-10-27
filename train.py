@@ -101,7 +101,7 @@ def main():
     
     # parse arguments
     args = parse_args()
-    
+
     # seed everything
     seed_everything(args.seed)
     
@@ -323,12 +323,10 @@ def main():
         
         # TODO: finish this
         for step, (images, labels) in enumerate(train_loader):
-            
-            batch_size = images.size(0)
-            
+
             # TODO: send to device
             images = images.to(device)
-            labels = labels.to(device) 
+            labels = labels.to(device)
             
             
             # NOTE: this is for latent DDPM 
@@ -354,7 +352,7 @@ def main():
             noise = torch.randn_like(images)  
             
             # TODO: sample timestep t
-            timesteps = torch.randint(0, args.num_train_timesteps, (batch_size,), device=device).long()
+            timesteps = torch.randint(0, args.num_train_timesteps, (args.batch_size,)).long()
             # TODO: add noise to images using noise_scheduler
             noisy_images = noise_scheduler.add_noise(images, noise, timesteps)
 
