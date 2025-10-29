@@ -5,7 +5,7 @@ from tqdm import tqdm
 import torch 
 import torch.nn as nn
 from utils import randn_tensor
-
+from inspect import signature # Added to inspect if scheduler accepts "eta" as an argument to self.scheduler.step() for ddim. If ddpm doesn't accept eta (not applicable for ddpm), we may receive a Python Type Error. SK 29Oct2025.
 
 
 class DDPMPipeline:
@@ -62,6 +62,7 @@ class DDPMPipeline:
         guidance_scale : Optional[float] = None,
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         device = None,
+        eta: Optional[float] = None # Added for ddim; ddpm ignores. SK 29Oct2025
     ):
         image_shape = (batch_size, self.unet.input_ch, self.unet.input_size, self.unet.input_size)
         if device is None:
@@ -91,6 +92,9 @@ class DDPMPipeline:
 
         # TODO: set step values using steps of scheduler
         self.scheduler.set_timesteps(num_inference_steps, device=device)
+
+        # Detect whether the active scheduler.step(...) accepts `eta` (DDIM does; DDPM usually doesn't)
+        step_accepts_eta = "eta" in signature(self.scheduler.step).parameters
         
         # TODO: inverse diffusion process with for loop
         for t in self.progress_bar(self.scheduler.timesteps):
@@ -103,7 +107,7 @@ class DDPMPipeline:
             else:
                 model_input = image 
                 # NOTE: leave c as None if you are not using CFG
-                c = None
+                c = class_embeds
             
             # TODO: 1. predict noise model_output
             model_output = self.unet.forward(model_input, t, c=c)
@@ -114,12 +118,24 @@ class DDPMPipeline:
                 model_output = uncond_model_output + guidance_scale * (cond_model_output - uncond_model_output)
             
             # TODO: 2. compute previous image: x_t -> x_t-1 using scheduler
-            image = self.scheduler.step(
+            # image = self.scheduler.step(
+            #     model_output=model_output,
+            #     timestep=t,
+            #     sample=image,
+            #     generator=generator,
+            #     eta=0.0 if eta is None else eta, # Added SK 29Oct2025
+            # )
+            # Updating the following scheduler.step() to account for eta acceptance or not. SK 29Oct2025
+            step_kwargs = dict(
                 model_output=model_output,
                 timestep=t,
                 sample=image,
                 generator=generator,
             )
+            if step_accepts_eta:
+                step_kwargs["eta"] = 0.0 if eta is None else eta # Deterministic DDIM when eta=None
+            
+            image = self.scheduler.step(**step_kwargs)
 
 
         # NOTE: this is for latent DDPM

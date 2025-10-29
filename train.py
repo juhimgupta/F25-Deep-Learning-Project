@@ -78,6 +78,8 @@ def parse_args():
     
     # ddim sampler for inference
     parser.add_argument("--use_ddim", type=str2bool, default=False, help="use ddim sampler for inference")
+    parser.add_argument("--ddim_eta", type=float, default=0.0,
+                    help="DDIM stochasticity (0.0=deterministic)")
     
     # checkpoint path for inference
     parser.add_argument("--ckpt", type=str, default=None, help="checkpoint path for inference")
@@ -181,7 +183,7 @@ def main():
     
     # TODO: ddpm shceduler
     noise_scheduler = DDPMScheduler(
-        num_inference_steps=args.num_inference_steps, 
+        num_inference_steps=args.num_inference_steps, # corrected typo in inference_timesteps. Should just be .."inference_steps". SK 29Oct2025.
         num_train_timesteps=args.num_train_timesteps,
         beta_start=args.beta_start,
         beta_end=args.beta_end,
@@ -210,7 +212,8 @@ def main():
         )
         
     # send to device
-    unet
+    # explicitly move the model to the same device as the training tensors- SK 29Oct2025.
+    unet = unet.to(device)
     noise_scheduler
     if vae:
         vae = vae.to(device)
@@ -250,7 +253,7 @@ def main():
     # TODO: setup ddim
     if args.use_ddim:
         scheduler_wo_ddp = DDIMScheduler(
-            num_inference_steps=args.num_inference_timesteps,
+            num_inference_steps=args.num_inference_steps,
             num_train_timesteps=args.num_train_timesteps,
             beta_start=args.beta_start,
             beta_end=args.beta_end,
@@ -352,7 +355,20 @@ def main():
             noise = torch.randn_like(images)  
             
             # TODO: sample timestep t
-            timesteps = torch.randint(0, args.num_train_timesteps, (args.batch_size,)).long()
+            # timesteps = torch.randint(0, args.num_train_timesteps, (args.batch_size,)).long()
+            """
+            Change from timesteps = torch.randint(0, args.num_train_timesteps, (args.batch_size,)).long() to the structure below in case the lasst batch in dataset might have fewer samples and may cause a RuntimeEerror with tensor size mismatch.
+
+            Instead, replace timesteps as below to match the timesteps to the batch size dynamically.
+            """
+            B = images.size(0)  # actual batch size (may be smaller than args.batch_size)
+            timesteps = torch.randint(
+                low=0,                          # lower bound (inclusive)
+                high=args.num_train_timesteps,  # upper bound (exclusive)
+                size=(B,),                      # create one timestep per image
+                device=device,                  # allocate directly on GPU
+                dtype=torch.long                # ensure it's long integer type
+            )
             # TODO: add noise to images using noise_scheduler
             noisy_images = noise_scheduler.add_noise(images, noise, timesteps)
 
@@ -376,6 +392,7 @@ def main():
             
             # TODO: step your optimizer
             optimizer.step()
+            lr_scheduler.step() # Step the lr scheduler. SK 29Oct2025.
             
             progress_bar.update(1)
             
@@ -395,10 +412,10 @@ def main():
             # random sample 4 classes
             classes = torch.randint(0, args.num_classes, (4,), device=device)
             # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes) 
+            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
         else:
             # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None)
+            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
 
         # create a blank canvas for the grid
         grid_image = Image.new('RGB', (4 * args.image_size, 1 * args.image_size))

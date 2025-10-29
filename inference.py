@@ -75,8 +75,8 @@ def main():
     # scheduler
     if args.use_ddim:
         scheduler_class = DDIMScheduler(
-                betas=betas,                         # or whatever your base DDPMScheduler expects
-                num_inference_steps=50,              # you can override again in pipeline.__call__
+                betas=betas,                         
+                num_inference_steps=50,              
                 prediction_type="epsilon",
                 clip_sample=True,
                 clip_sample_range=1.0,
