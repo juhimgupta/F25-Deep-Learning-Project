@@ -22,10 +22,10 @@ class DDIMScheduler(DDPMScheduler): # Inherits from DDPMScheduler all of its fie
         This is one of the most important functions in the DDIM. It calculates the variance $sigma_t$ for a given timestep.
         
         Args:
-            t (`int`): The current timestep.
+            t (int): The current timestep.
         
         Return:
-            variance (`torch.Tensor`): The variance $sigma_t$ for the given timestep.
+            variance (torch.Tensor): The variance $sigma_t$ for the given timestep.
 
         Note about timesteps:
         1.  During inference, the T training steps list will be subsampled to a shorter timsteps list in descending order which may or may not be contiguous: [1000, 997, 972, 949, ..., 0]
@@ -93,19 +93,19 @@ class DDIMScheduler(DDPMScheduler): # Inherits from DDPMScheduler all of its fie
         process from the learned model outputs (most often the predicted noise).
 
         Args:
-            model_output (`torch.Tensor`):
+            model_output (torch.Tensor):
                 The direct output from learned diffusion model.
-            timestep (`float`):
+            timestep (float'):
                 The current discrete timestep in the diffusion chain.
-            sample (`torch.Tensor`):
+            sample (torch.Tensor):
                 A current instance of a sample created by the diffusion process.
-            eta (`float`):
+            eta (float):
                 The weight of the noise to add to the variance.
-            generator (`torch.Generator`, *optional*):
+            generator (torch.Generator, *optional*):
                 A random number generator.
 
         Returns:
-            pred_prev_sample (`torch.Tensor`):
+            pred_prev_sample (torch.Tensor):
                 The predicted previous sample.
 
         
