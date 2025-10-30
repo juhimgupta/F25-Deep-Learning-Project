@@ -124,33 +124,19 @@ def main():
     logger.info("Creating dataset")
     # TODO: use transform to normalize your images to [-1, 1]
     # TODO: you can also use horizontal flip
-    transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(p=0.5),  # 50% chance of flipping horizontally
-    transforms.ToTensor(),  # Converts to [0, 1] range
-    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalizes to [-1, 1] range
-]) 
+    transform = None 
     # TOOD: use image folder for your train dataset
-    train_dataset = datasets.ImageFolder(root=args.data_dir, transform=transform) 
+    train_dataset = None 
     
     # TODO: setup dataloader
     sampler = None 
     if args.distributed:
         # TODO: distributed sampler
-        sampler = DistributedSampler(train_dataset, 
-                                    num_replicas=args.world_size, 
-                                    rank=args.rank, 
-                                    shuffle=True
-                                    ) 
+        sampler =None 
     # TODO: shuffle
     shuffle = False if sampler else True
     # TODO dataloader
-    train_loader = DataLoader(train_dataset,
-                            batch_size=args.batch_size,
-                            sampler=sampler,
-                            shuffle=shuffle,
-                            num_workers=args.num_workers,
-                            pin_memory=True,
-                            ) 
+    train_loader = None 
     
     # calculate total batch_size
     total_batch_size = args.batch_size * args.world_size 
@@ -178,6 +164,7 @@ def main():
     
     # TODO: ddpm shceduler
     scheduler = DDPMScheduler(None)
+    
     # NOTE: this is for latent DDPM 
     vae = None
     if args.latent_ddpm:
@@ -190,30 +177,20 @@ def main():
     class_embedder = None
     if args.use_cfg:
         # TODO: 
-        class_embedder = ClassEmbedder(embed_dim=args.unet_ch,
-                                    n_classes=args.num_classes,
-                                    )
+        class_embedder = ClassEmbedder(None)
         
     # send to device
     unet = unet.to(device)
-    #scheduler = scheduler.to(device) #FIXME: needed?
+    scheduler = scheduler.to(device)
     if vae:
         vae = vae.to(device)
     if class_embedder:
         class_embedder = class_embedder.to(device)
     
     # TODO: setup optimizer
-    optimizer = torch.optim.AdamW(
-                                params=unet.parameters() if class_embedder is None else list(unet.parameters()) + list(class_embedder.parameters()),
-                                lr=args.learning_rate,
-                                weight_decay=args.weight_decay,
-                            ) 
+    optimizer = None 
     # TODO: setup scheduler
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                                                        optimizer,
-                                                        T_max=args.num_epochs * len(train_loader),
-                                                        eta_min=1e-6,
-                                                    ) 
+    scheduler = None 
     
     # max train steps
     num_update_steps_per_epoch = len(train_loader)
@@ -287,62 +264,55 @@ def main():
         loss_m = AverageMeter()
         
         # TODO: set unet and scheduelr to train
-        unet = unet.train()
-        #scheduler 
+        unet
+        scheduler 
         
         
         # TODO: finish this
-        for step, (images, labels) in enumerate(train_loader):
+        for step, (None, labels) in enumerate(train_loader):
             
             batch_size = images.size(0)
             
             # TODO: send to device
-            images = images.to(device)
-            labels = labels.to(device) 
+            images = None 
+            labels = None 
             
             
             # NOTE: this is for latent DDPM 
             if vae is not None:
                 # use vae to encode images as latents
-                images = vae.encode(images) 
+                images = None 
                 # NOTE: do not change  this line, this is to ensure the latent has unit std
                 images = images * 0.1845
             
             # TODO: zero grad optimizer
-            optimizer.zero_grad()
+            
             
             # NOTE: this is for CFG
             if class_embedder is not None:
                 # TODO: use class embedder to get class embeddings
-                class_emb = class_embedder(labels) 
+                class_emb = None 
             else:
                 # NOTE: if not cfg, set class_emb to None
                 class_emb = None
             
             # TODO: sample noise 
-            noise = torch.randn_like(images)  
+            noise = None  
             
             # TODO: sample timestep t
-            B = images.size(0)  # Get actual batch size
-            timesteps = torch.randint(
-                low=0,
-                high=args.num_train_timesteps,
-                size=(B,),
-                device=device,
-                dtype=torch.long
-            )
+            timesteps = None 
             
             # TODO: add noise to images using scheduler
-            noisy_images = scheduler.add_noise(images, noise, timesteps) 
+            noisy_images = None 
             
             # TODO: model prediction
-            model_pred = unet(noisy_images, timesteps, c=class_emb) 
+            model_pred = None 
             
             if args.prediction_type == 'epsilon':
                 target = noise 
             
             # TODO: calculate loss
-            loss = F.mse_loss(model_pred, target) 
+            loss = None 
             
             # record loss
             loss_m.update(loss.item())
@@ -351,11 +321,10 @@ def main():
             loss.backward()
             # TODO: grad clip
             if args.grad_clip:
-                torch.nn.utils.clip_grad_norm_(unet.parameters(), args.grad_clip) 
+                pass 
             
             # TODO: step your optimizer
-            optimizer.step()
-            lr_scheduler.step()
+            optimizer
             
             progress_bar.update(1)
             
