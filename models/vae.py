@@ -42,7 +42,7 @@ class VAE(nn.Module):
     @torch.no_grad()
     def decode(self, z):
         # TODO: reconstruct images from latent
-        z = self.post_quant_conv 
+        z = self.post_quant_conv(z) 
         dec = self.decoder(z)
         return dec
 
