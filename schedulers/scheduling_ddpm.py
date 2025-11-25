@@ -314,14 +314,14 @@ class DDPMScheduler(nn.Module):
 
 
         # 6. Add noise
-        variance = 0.0
         if t_int > 0:
             device = model_output.device
+            variance = torch.tensor(self._get_variance(t), device=model_output.device, dtype=model_output.dtype)
             variance_noise = randn_tensor(
                 model_output.shape, generator=generator, device=device, dtype=model_output.dtype
             )
             # TODO: use self,get_variance and variance_noise
-            variance = self._get_variance(t) * variance_noise 
+            #variance = self._get_variance(t) * variance_noise 
         
         # TODO: add variance to prev_sample
         pred_prev_sample = pred_prev_sample + torch.sqrt(variance) * variance_noise
