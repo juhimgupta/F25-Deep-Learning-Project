@@ -323,7 +323,7 @@ class DDPMScheduler(nn.Module):
             # TODO: use self,get_variance and variance_noise
             #variance = self._get_variance(t) * variance_noise 
         
-        # TODO: add variance to prev_sample
-        pred_prev_sample = pred_prev_sample + torch.sqrt(variance) * variance_noise
+            # TODO: add variance to prev_sample
+            pred_prev_sample = pred_prev_sample + torch.sqrt(variance) * variance_noise
 
         return pred_prev_sample
