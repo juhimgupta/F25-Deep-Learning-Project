@@ -1,0 +1,60 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -p GPU-shared
+#SBATCH -t 1-00:00:00
+#SBATCH --gpus=h100-80:1
+#SBATCH --job-name=idl_ddim_imagenet
+#SBATCH -A cis250280p
+#SBATCH --output=slurm/train/%j.out
+#SBATCH --error=slurm/train/%j.err
+#SBATCH --export=ALL
+
+# Run this file by using: "sbatch run_ddim_training.slurm"
+# MODULES & ENV 
+source /etc/profile.d/modules.sh
+source /opt/modules/init/bash
+
+echo "HOSTNAME: $(hostname)"
+echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
+
+module load anaconda3/2024.10-1
+module load cuda/12.4
+
+# Activate conda
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate diffusion_env
+
+echo "Loaded modules:"
+module list
+echo "Python path: $(which python)"
+
+echo "Conda env:"
+conda info | sed -n '1,20p'
+conda list | grep -E "torch|cuda"
+
+echo "GPU info:"
+nvidia-smi
+
+# WANDB (**Enter the API_KEY below**)
+export WANDB_API_KEY="Add-Key" 
+export WANDB_ENTITY="Diffusion-F25DL_Project"
+export WANDB_PROJECT="ddim"
+
+# Paths_and_folders
+cd /jet/home/skothare/F25-Deep-Learning-Project
+
+# Make sure slurm + experiments dirs exist
+mkdir -p slurm/train
+mkdir -p experiments
+
+# RUN TRAININGS!
+CMD="python train.py --config configs/ddim_imagenet.yaml"
+echo "Running command:"
+echo "    $CMD"
+echo "-------------------------------------------"
+
+$CMD
+EXIT_CODE=$?
+
+echo "Training finished with exit code $EXIT_CODE"
+exit $EXIT_CODE

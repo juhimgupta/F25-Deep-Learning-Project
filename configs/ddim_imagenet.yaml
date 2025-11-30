@@ -6,7 +6,7 @@ clip_sample_range: 1.0
 
 #Paths
 run_name: imagenet100_ddim
-output_dir: ddim_trained_models
+output_dir: experiments
 
 # Using the common dataset folder
 data_dir: /jet/home/jgupta2/hw5_student_starter_code/data/imagenet100_128x128/train

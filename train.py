@@ -440,9 +440,11 @@ def main():
     # start tracker
     if is_primary(args):
         wandb_logger = wandb.init(
-            project='ddpm', 
-            name=args.run_name, 
-            config=vars(args))
+            project=os.environ.get("WANDB_PROJECT", "ddpm"),
+            entity=os.environ.get("WANDB_ENTITY", "Diffusion-F25DL_Project"),
+            name=args.run_name,
+            config=vars(args),
+        )
     
     # Start training    
     if is_primary(args):
