@@ -16,7 +16,7 @@ val_dir:  /jet/home/jgupta2/hw5_student_starter_code/data/imagenet100_128x128/va
 seed: 42
 image_size: 128
 batch_size: 32  # like Juhi and we used in the CLI for CIFAR10
-num_workers: 8
+num_workers: 0 # Switched from 8-->2-->0 due to RuntimeError in DataLoader worker process 0.
 num_classes: 100
 num_epochs: 100
 learning_rate: 2.0e-4

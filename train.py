@@ -256,13 +256,15 @@ def main():
     # TODO: use transform to normalize your images to [-1, 1]
     # TODO: you can also use horizontal flip
     transform = transforms.Compose([
+        transforms.Resize((args.image_size, args.image_size)),# <--- FORCE 128x128
         transforms.RandomHorizontalFlip(p=0.5),  # 50% chance to flip horizontally
         transforms.ToTensor(),  # Converts to [0, 1] range
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]) # Normalizes to [-1, 1] range
     ])
     val_tf = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize([0.5,0.5,0.5],[0.5,0.5,0.5]),
+        transforms.Resize((args.image_size, args.image_size)), 
+        transforms.ToTensor(),
+        transforms.Normalize([0.5,0.5,0.5],[0.5,0.5,0.5]),
     ])
     # TODO: use image folder for your train dataset
     train_dataset = datasets.ImageFolder(root=args.data_dir, transform=transform)

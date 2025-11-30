@@ -6,3 +6,24 @@
 
 # macOS Finder metadata (local Mac files)
 .DS_Store
+
+# Ignore outputs, logs, checkpoints
+experiments/
+wandb/
+slurm/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Checkpoints & model weights
+*.pt
+*.ckpt
+
+# Misc runtime files
+*.out
+*.err
+.DS_Store
+
+# wandb environment file (secret)
+wandb.env

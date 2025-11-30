@@ -5,14 +5,13 @@
 #SBATCH --gpus=h100-80:1
 #SBATCH --job-name=idl_ddim_imagenet
 #SBATCH -A cis250280p
-#SBATCH --output=slurm/train/%j.out
-#SBATCH --error=slurm/train/%j.err
+#SBATCH --output=/jet/home/skothare/F25-Deep-Learning-Project/slurm/train/%j.out
+#SBATCH --error=/jet/home/skothare/F25-Deep-Learning-Project/slurm/train/%j.err
 #SBATCH --export=ALL
 
-# Run this file by using: "sbatch run_ddim_training.slurm"
+
 # MODULES & ENV 
 source /etc/profile.d/modules.sh
-source /opt/modules/init/bash
 
 echo "HOSTNAME: $(hostname)"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
@@ -35,13 +34,23 @@ conda list | grep -E "torch|cuda"
 echo "GPU info:"
 nvidia-smi
 
-# WANDB (**Enter the API_KEY below**)
-export WANDB_API_KEY="Add-Key" 
+# Paths_and_folders
+cd /jet/home/skothare/F25-Deep-Learning-Project
+
+# WANDB
+# Load API key from local file (not in git)
+if [ -f "wandb.env" ]; then
+    echo "Sourcing wandb.env"
+    source wandb.env
+else
+    echo "WARNING: wandb.env not found – W&B logging may fail."
+fi
+
+# export WANDB_API_KEY="<Add Key>"
 export WANDB_ENTITY="Diffusion-F25DL_Project"
 export WANDB_PROJECT="ddim"
 
-# Paths_and_folders
-cd /jet/home/skothare/F25-Deep-Learning-Project
+
 
 # Make sure slurm + experiments dirs exist
 mkdir -p slurm/train
