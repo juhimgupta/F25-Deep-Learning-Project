@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torchvision import transforms, datasets
 from torchvision.utils  import make_grid
 
-from models import UNet, VAE, ClassEmbedder
+from models import UNet, VAE, ClassEmbedder, DiffusionTransformer
 from schedulers import DDPMScheduler, DDIMScheduler
 from pipelines import DDPMPipeline
 from utils import seed_everything, load_checkpoint
