@@ -7,9 +7,11 @@ class ClassEmbedder(nn.Module):
         super().__init__()
         
         # TODO: implement the class embeddering layer for CFG using nn.Embedding
-        self.embedding = nn.Embedding(n_classes, embed_dim) 
+        self.embedding = nn.Embedding(n_classes+1, embed_dim) 
         self.cond_drop_rate = cond_drop_rate
         self.num_classes = n_classes
+
+        self.uncond_idx = n_classes
 
     def forward(self, x):
         b = x.shape[0]
