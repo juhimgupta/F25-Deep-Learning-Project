@@ -163,7 +163,7 @@ def calculate_fid_is(pipeline, val_loader, args, device, num_samples=1000):
             
             # Generate images
             eta = args.ddim_eta if hasattr(args, 'ddim_eta') else 0.0
-            guidance_scale = args.cfg_guidance_scale if args.use_cfg else 1.0
+            guidance_scale = args.cfg_guidance_scale if args.use_cfg else None
             
             batch_images = pipeline(
                 batch_size=current_batch_size,
@@ -259,6 +259,9 @@ def main():
     transform = transforms.Compose([
         transforms.Resize((args.image_size, args.image_size)),# <--- FORCE 128x128
         transforms.RandomHorizontalFlip(p=0.5),  # 50% chance to flip horizontally
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.RandomAffine(degrees=10, translate=(0.1, 0.1)),
         transforms.ToTensor(),  # Converts to [0, 1] range
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]) # Normalizes to [-1, 1] range
     ])
@@ -360,7 +363,7 @@ def main():
     if args.use_cfg:
         # TODO: 
         class_embedder = ClassEmbedder(
-            embed_dim=args.unet_in_ch,
+            embed_dim=args.unet_ch,
             n_classes=args.num_classes,
         )
         
