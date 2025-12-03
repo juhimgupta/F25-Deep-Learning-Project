@@ -587,6 +587,14 @@ def main():
                 if MAX_VAL_STEPS is not None and i >= MAX_VAL_STEPS:
                     break
                 images = images.to(device)
+                labels = labels.to(device)
+
+                # Add class embedding logic
+                if class_embedder is not None and args.use_cfg:
+                    class_emb = class_embedder(labels)
+                else:
+                    class_emb = None
+        
                 # Mimic the process of corrupting with noise
                 noise = torch.randn_like(images)
                 B = images.size(0)
@@ -594,7 +602,14 @@ def main():
                     low=0, high=args.num_train_timesteps, size=(B,), device=device, dtype=torch.long
                 )
                 noisy_images = noise_scheduler.add_noise(images, noise, timesteps) # Add noise with a scheduler.
-                model_pred = unet(noisy_images, timesteps, c=None) # Predict ϵ=ϵ_θ​(xt​,t)
+                #model_pred = unet(noisy_images, timesteps, c=None) # Predict ϵ=ϵ_θ​(xt​,t)
+                # Use the class embedding here, but provide a fallback
+                try:
+                    model_pred = unet(noisy_images, timesteps, c=class_emb)
+                except TypeError:
+                    # If the UNet can't handle None, try without the class embedding parameter
+                    model_pred = unet(noisy_images, timesteps)
+                    
                 val_loss_total += F.mse_loss(model_pred, noise).item() # COmpute the MSE loss 
                 val_steps += 1
         val_loss = val_loss_total / max(1, val_steps) # Average across all batches
@@ -688,11 +703,28 @@ def main():
         if args.use_cfg:
             # random sample 4 classes
             classes = torch.randint(0, args.num_classes, (4,), device=device)
-            # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
+            gen_images = pipeline(
+                batch_size=4,
+                num_inference_steps=args.num_inference_steps,
+                classes=classes,
+                guidance_scale=args.cfg_guidance_scale,
+                eta=args.ddim_eta,
+            )
         else:
-            # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
+            gen_images = pipeline(
+                batch_size=4,
+                num_inference_steps=args.num_inference_steps,
+                classes=None,
+                eta=args.ddim_eta
+            )
+        # if args.use_cfg:
+        #     # random sample 4 classes
+        #     classes = torch.randint(0, args.num_classes, (4,), device=device)
+        #     # TODO: fill pipeline
+        #     gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
+        # else:
+        #     # TODO: fill pipeline
+        #     gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
 
         # create a blank canvas for the grid
         grid_image = Image.new('RGB', (4 * args.image_size, 1 * args.image_size))
