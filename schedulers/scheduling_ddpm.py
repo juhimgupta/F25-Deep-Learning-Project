@@ -42,11 +42,43 @@ class DDPMScheduler(nn.Module):
     
         # TODO: calculate betas
         if self.beta_schedule == 'linear':
-            # This is the DDPM implementation
-            betas = torch.linspace(self.beta_start, self.beta_end, self.num_train_timesteps, dtype=torch.float32)
+            # Standard DDPM linear schedule
+            betas = torch.linspace(
+                self.beta_start,
+                self.beta_end,
+                self.num_train_timesteps,
+                dtype=torch.float32,
+            )
+
+        elif self.beta_schedule == 'quadratic':
+            # Quadratic schedule - slower noise increase at the start, faster towards the end
+            t = torch.linspace(0.0, 1.0, self.num_train_timesteps, dtype=torch.float32)
+            betas = self.beta_start + (self.beta_end - self.beta_start) * (t ** 2)
+
+        elif self.beta_schedule == 'cosine':
+            # Cosine schedule - smoother noise progression (DDIM-style alpha_bar)
+            # Follow alpha_bar(t) = cos^2( ( (t/T + 0.008)/1.008 ) * pi/2 )
+            steps = self.num_train_timesteps
+            # x goes from 0..T inclusive, so we have T+1 points
+            x = torch.linspace(0, steps, steps + 1, dtype=torch.float32)
+
+            alphas_cumprod = torch.cos(((x / steps) + 0.008) / 1.008 * np.pi / 2) ** 2
+            # Normalize so that alpha_bar(0) = 1
+            alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+
+            # Convert alpha_bar sequence to betas between consecutive steps
+            betas = 1.0 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+            betas = torch.clamp(betas, min=1e-4, max=0.9999)
+
         else:
             print(f"[Warning] Unknown beta_schedule {self.beta_schedule}. Using linear schedule.")
-            betas = torch.linspace(self.beta_start, self.beta_end, self.num_train_timesteps, dtype=torch.float32)
+            betas = torch.linspace(
+                self.beta_start,
+                self.beta_end,
+                self.num_train_timesteps,
+                dtype=torch.float32,
+            )
+
         self.register_buffer("betas", betas)
          
         # TODO: calculate alphas

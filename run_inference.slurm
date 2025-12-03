@@ -1,0 +1,77 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -p GPU-shared
+#SBATCH -t 08:00:00
+#SBATCH --gpus=1
+#SBATCH --job-name=idl_ddim_infer
+#SBATCH -A cis250280p
+#SBATCH --output=/jet/home/skothare/F25-Deep-Learning-Project/slurm/inference/%j.out
+#SBATCH --error=/jet/home/skothare/F25-Deep-Learning-Project/slurm/inference/%j.err
+#SBATCH --export=ALL
+
+
+# MODULES & ENVIRONMENT SETUP
+
+
+source /etc/profile.d/modules.sh
+
+echo "HOSTNAME: $(hostname)"
+echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
+
+module load anaconda3/2024.10-1
+module load cuda/12.4
+
+# Activate conda env
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate diffusion_env
+
+echo "Loaded modules:"
+module list
+echo "Python path: $(which python)"
+echo "Conda env:"
+conda info | sed -n '1,20p'
+conda list | grep -E "torch|cuda"
+
+echo "GPU info:"
+nvidia-smi
+
+
+# PROJECT PATHS
+
+
+cd /jet/home/skothare/F25-Deep-Learning-Project
+
+mkdir -p slurm/inference
+
+
+# WANDB 
+
+if [ -f "wandb.env" ]; then
+    echo "Sourcing wandb.env"
+    source wandb.env
+else
+    echo "WARNING: wandb.env not found – WandB logging may fail."
+fi
+
+export WANDB_ENTITY="Diffusion-F25DL_Project"
+export WANDB_PROJECT="ddim_inference"
+
+
+# INFERENCE COMMAND
+
+
+CONFIG="configs/ddim_imagenet.yaml"
+CKPT="/jet/home/skothare/F25-Deep-Learning-Project/experiments/exp-4-imagenet100_ddim/checkpoints/best.pt"   # <-- update as needed
+
+CMD="python -u inference.py --config $CONFIG --ckpt $CKPT"
+
+echo "-------------------------------------------"
+echo "Running inference command:"
+echo "    $CMD"
+echo "-------------------------------------------"
+
+$CMD
+EXIT_CODE=$?
+
+echo "Inference finished with exit code $EXIT_CODE"
+exit $EXIT_CODE

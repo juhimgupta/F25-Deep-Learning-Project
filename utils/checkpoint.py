@@ -1,23 +1,74 @@
 import torch
 import os
 
-def load_checkpoint(unet, scheduler, vae=None, class_embedder=None, optimizer=None, checkpoint_path='checkpoints/checkpoint.pth'):
-    
-    print("loading checkpoint")
-    checkpoint = torch.load(checkpoint_path)
-    
-    print("loading unet")
-    unet.load_state_dict(checkpoint['unet_state_dict'])
-    print("loading scheduler")
-    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    
-    if vae is not None and 'vae_state_dict' in checkpoint:
-        print("loading vae")
-        vae.load_state_dict(checkpoint['vae_state_dict'])
-    
-    if class_embedder is not None and 'class_embedder_state_dict' in checkpoint:
-        print("loading class_embedder")
-        class_embedder.load_state_dict(checkpoint['class_embedder_state_dict'])
+def load_checkpoint(
+    unet,
+    scheduler=None,# this is the *training* LR scheduler if we need to use it; inference can pass None
+    vae=None,
+    class_embedder=None,
+    optimizer=None,
+    checkpoint_path="checkpoints/checkpoint.pth",
+    map_location="cpu",
+):
+    print(f"[load_checkpoint] Loading checkpoint from: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, weights_only=False, map_location=map_location)
+
+    # UNET
+    print("[load_checkpoint] Loading UNet weights")
+    if "unet_state_dict" in checkpoint:
+        unet_state = checkpoint["unet_state_dict"]
+    elif "unet" in checkpoint:
+        unet_state = checkpoint["unet"]
+    else:
+        raise KeyError(
+            f"Neither 'unet_state_dict' nor 'unet' found in checkpoint keys: {checkpoint.keys()}"
+        )
+    unet.load_state_dict(unet_state)
+
+    # OPTIMIZER (optional, for training resume) 
+    if optimizer is not None and "optimizer" in checkpoint:
+        try:
+            print("[load_checkpoint] Loading optimizer state")
+            optimizer.load_state_dict(checkpoint["optimizer"])
+        except Exception as e:
+            print(f"[load_checkpoint] Failed to load optimizer state: {e}")
+
+    # LR SCHEDULER
+    if scheduler is not None and "lr_scheduler" in checkpoint:
+        try:
+            print("[load_checkpoint] Loading lr_scheduler state")
+            scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        except Exception as e:
+            print(f"[load_checkpoint] Failed to load lr_scheduler state: {e}")
+
+    # VAE 
+    if vae is not None:
+        for k in ["vae", "vae_state_dict"]:
+            if k in checkpoint and checkpoint[k] is not None:
+                try:
+                    print(f"[load_checkpoint] Loading VAE state from '{k}'")
+                    vae.load_state_dict(checkpoint[k])
+                except Exception as e:
+                    print(f"[load_checkpoint] Failed to load VAE state from '{k}': {e}")
+                break
+        else:
+            print("[load_checkpoint] No VAE weights found in checkpoint")
+
+    # CLASS EMBEDDER
+    if class_embedder is not None:
+        for k in ["class_embedder", "class_embedder_state_dict"]:
+            if k in checkpoint and checkpoint[k] is not None:
+                try:
+                    print(f"[load_checkpoint] Loading class_embedder from '{k}'")
+                    class_embedder.load_state_dict(checkpoint[k])
+                except Exception as e:
+                    print(f"[load_checkpoint] Failed to load class_embedder from '{k}': {e}")
+                break
+        else:
+            print("[load_checkpoint] No class_embedder weights found in checkpoint")
+
+    print("[load_checkpoint] Done.")
+    return checkpoint
     
     
         

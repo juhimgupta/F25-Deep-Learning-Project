@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -p GPU-shared
-#SBATCH -t 1-00:00:00
+#SBATCH -t 3-00:00:00
 #SBATCH --gpus=h100-80:1
 #SBATCH --job-name=idl_ddim_imagenet
 #SBATCH -A cis250280p
@@ -57,7 +57,7 @@ mkdir -p slurm/train
 mkdir -p experiments
 
 # RUN TRAININGS!
-CMD="python train.py --config configs/ddim_imagenet.yaml"
+CMD="python -u train.py --config configs/ddim_imagenet.yaml"
 echo "Running command:"
 echo "    $CMD"
 echo "-------------------------------------------"

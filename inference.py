@@ -125,12 +125,14 @@ def main():
 
     # load checkpoint (a trained checkpoint)
     load_checkpoint(
-        unet, 
-        scheduler, 
-        vae=vae, 
-        class_embedder=class_embedder, 
+        unet=unet,
+        scheduler=None,  # this is the *training* LR scheduler; not needed for inference
+        vae=vae,
+        class_embedder=class_embedder,
+        optimizer=None, # not resuming training, so None
         checkpoint_path=args.ckpt,
-        )
+        map_location=device,
+    )
     
     # Building the diffusion pipeline
     # TODO: pipeline
@@ -158,10 +160,9 @@ def main():
     # required by torchmetrics to have a transform to convert PIL images (from pipeline ) to  uint8 Tensors [0-255] 
     pil_to_tensor = transforms.PILToTensor()
 
-    guidance_scale = getattr(args, "guidance_scale", None)
-    eta = getattr(args, "eta", 0.0) if args.use_ddim else None
+    guidance_scale = args.cfg_guidance_scale if args.use_cfg else None
+    eta = args.ddim_eta if args.use_ddim else None
     num_inference_steps = args.num_inference_steps
-
     # GENERATION:
     if args.use_cfg:
         # generate 50 images per class
@@ -221,7 +222,7 @@ def main():
     logger.info("Loading validation images for Frechet Inception Distance or Inception Score...")
     # We need real images to compare against. 
     # Assumes args.val_data_dir points to ImageNet validation folders.
-    val_data_dir = getattr(args, "val_data_dir", "data/val")
+    val_data_dir = args.val_dir or "data/val"
     val_transform = transforms.Compose([
         transforms.Resize((args.unet_in_size, args.unet_in_size)),
         transforms.PILToTensor(),  # uint8 [0, 255]
@@ -250,7 +251,8 @@ def main():
     logger.info("Computing FID and Inception Score...")
     import torchmetrics 
     
-    from torchmetrics.image.fid import FrechetInceptionDistance, InceptionScore
+    from torchmetrics.image.fid import FrechetInceptionDistance
+    from torchmetrics.image.inception import InceptionScore
     
     # TODO: compute FID and IS
     # Initialize Metrics (feature=2048 is standard for FID)
@@ -262,7 +264,6 @@ def main():
 
     # IS: expects fake samples only
     inception = InceptionScore(
-        feature="logits_unbiased",
         normalize=False,
         splits=10,
     ).to(device)

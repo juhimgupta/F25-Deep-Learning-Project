@@ -69,7 +69,7 @@ class DDPMPipeline:
             device = next(self.unet.parameters()).device
         
         # NOTE: this is for CFG
-        if classes is not None or guidance_scale is not None:
+        if classes is not None or guidance_scale is not None and not hasattr(self, "class_embedder"):
             assert hasattr(self, "class_embedder"), "class_embedder is not defined"
 
         # Initialize optional CFG embeddings (to avoid UnboundLocalError) - SK 29Oct2025

@@ -155,8 +155,11 @@ def calculate_fid_is(pipeline, val_loader, args, device, num_samples=1000):
         for i in tqdm(range(num_batches), desc="Generating", disable=not is_primary(args)):
             current_batch_size = min(batch_size, num_samples - i * batch_size)
             
+            # Enable CFG only if args.use_cfg is True *and* the pipeline actually has a class_embedder
+            use_cfg = args.use_cfg and hasattr(pipeline, "class_embedder")
+
             # Sample classes if using CFG
-            if args.use_cfg:
+            if use_cfg:
                 classes = torch.randint(0, args.num_classes, (current_batch_size,), device=device)
             else:
                 classes = None
@@ -360,7 +363,7 @@ def main():
     if args.use_cfg:
         # TODO: 
         class_embedder = ClassEmbedder(
-            embed_dim=args.unet_in_ch,
+            embed_dim=args.unet_ch,
             n_classes=args.num_classes,
         )
         
@@ -601,17 +604,28 @@ def main():
             patience_counter = 0
             # save best model
             if is_primary(args):
-                torch.save({
+                best_ckpt = {
                     "epoch": epoch + 1,
                     "val_loss": float(val_loss),
                     "args": vars(args),
                     "unet": unet_wo_ddp.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "lr_scheduler": lr_scheduler.state_dict(),
-                    # Optional if you want to resume CFG:
-                    # "class_embedder": (class_embedder_wo_ddp.state_dict() if class_embedder_wo_ddp else None),
-                }, os.path.join(save_dir, "best.pt"))
-                logger.info(f"Saved BEST checkpoint: {os.path.join(save_dir, 'best.pt')}  (val_loss={val_loss:.6f})")
+                }
+
+                # Optionally save VAE state (for latent DDPM)
+                if vae_wo_ddp is not None:
+                    best_ckpt["vae"] = vae_wo_ddp.state_dict()
+
+                # Optionally save class_embedder state (for CFG)
+                if class_embedder_wo_ddp is not None:
+                    best_ckpt["class_embedder"] = class_embedder_wo_ddp.state_dict()
+
+                torch.save(best_ckpt, os.path.join(save_dir, "best.pt"))
+                logger.info(
+                    f"Saved BEST checkpoint: {os.path.join(save_dir, 'best.pt')}  (val_loss={val_loss:.6f})"
+                )
+                # Saving the first checkpoint using a checkpoint library and with optional vae and class_embedder. SK 03Dec2025
 
         else:
             patience_counter += 1
@@ -633,9 +647,8 @@ def main():
 
         # -----------   END EARLY STOPPING LOGIC
 
-        # =====================================================
         # FID/IS EVALUATION (if enabled)
-        # =====================================================
+
         if args.eval_fid_is and (epoch + 1) % args.eval_frequency == 0:
             if is_primary(args):
                 logger.info(f"\n{'='*60}")
@@ -686,10 +699,10 @@ def main():
             # random sample 4 classes
             classes = torch.randint(0, args.num_classes, (4,), device=device)
             # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
+            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=classes, eta=args.ddim_eta, guidance_scale=args.cfg_guidance_scale,) # Added ddim_eta from arguments. SK 29Oct2025
         else:
             # TODO: fill pipeline
-            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None, eta=args.ddim_eta) # Added ddim_eta from arguments. SK 29Oct2025
+            gen_images = pipeline(batch_size=4, num_inference_steps=args.num_inference_steps, classes=None, eta=args.ddim_eta, guidance_scale=1.0,) # Added ddim_eta from arguments. SK 29Oct2025
 
         # create a blank canvas for the grid
         grid_image = Image.new('RGB', (4 * args.image_size, 1 * args.image_size))
@@ -705,18 +718,24 @@ def main():
             
         # save checkpoint - Updated to use torch.save()- SK 29Oct2025
         if is_primary(args):
-            torch.save({
+            last_ckpt = {
                 "epoch": epoch + 1,
                 "val_loss": float(val_loss),
                 "args": vars(args),
                 "unet": unet_wo_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "lr_scheduler": lr_scheduler.state_dict(),
-                # Optional:
-                # "class_embedder": (class_embedder_wo_ddp.state_dict() if class_embedder_wo_ddp else None),
-            }, os.path.join(save_dir, "last.pt"))
-            logger.info(f"Saved LAST checkpoint: {os.path.join(save_dir, 'last.pt')}")
+            }
 
+            if vae_wo_ddp is not None:
+                last_ckpt["vae"] = vae_wo_ddp.state_dict()
+
+            if class_embedder_wo_ddp is not None:
+                last_ckpt["class_embedder"] = class_embedder_wo_ddp.state_dict()
+
+            torch.save(last_ckpt, os.path.join(save_dir, "last.pt"))
+            logger.info(f"Saved LAST checkpoint: {os.path.join(save_dir, 'last.pt')}")
+            # Saving the last checkpoint using a checkpoint library and with optional vae and class_embedder. SK 03Dec2025
 
 if __name__ == '__main__':
     main()
