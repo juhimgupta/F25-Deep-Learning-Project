@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -p GPU-shared
-#SBATCH -t 1-00:00:00
+#SBATCH -t 2-00:00:00
 #SBATCH --gpus=h100-80:1
 #SBATCH --job-name=idl_ddim_imagenet
 #SBATCH -A cis250280p

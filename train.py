@@ -619,17 +619,29 @@ def main():
             patience_counter = 0
             # save best model
             if is_primary(args):
-                torch.save({
+                best_ckpt = {
                     "epoch": epoch + 1,
                     "val_loss": float(val_loss),
                     "args": vars(args),
                     "unet": unet_wo_ddp.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "lr_scheduler": lr_scheduler.state_dict(),
-                    # Optional if you want to resume CFG:
-                    # "class_embedder": (class_embedder_wo_ddp.state_dict() if class_embedder_wo_ddp else None),
-                }, os.path.join(save_dir, "best.pt"))
-                logger.info(f"Saved BEST checkpoint: {os.path.join(save_dir, 'best.pt')}  (val_loss={val_loss:.6f})")
+                }
+
+                # Optionally save VAE state (for latent DDPM)
+                if vae_wo_ddp is not None:
+                    best_ckpt["vae"] = vae_wo_ddp.state_dict()
+
+                # Optionally save class_embedder state (for CFG)
+                if class_embedder_wo_ddp is not None:
+                    best_ckpt["class_embedder"] = class_embedder_wo_ddp.state_dict()
+
+                torch.save(best_ckpt, os.path.join(save_dir, "best.pt"))
+                logger.info(
+                    f"Saved BEST checkpoint: {os.path.join(save_dir, 'best.pt')}  (val_loss={val_loss:.6f})"
+                )
+                # Saving the first checkpoint using a checkpoint library and with optional vae and class_embedder. SK 03Dec2025
+
 
         else:
             patience_counter += 1
@@ -740,17 +752,25 @@ def main():
             
         # save checkpoint - Updated to use torch.save()- SK 29Oct2025
         if is_primary(args):
-            torch.save({
+            last_ckpt = {
                 "epoch": epoch + 1,
                 "val_loss": float(val_loss),
                 "args": vars(args),
                 "unet": unet_wo_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "lr_scheduler": lr_scheduler.state_dict(),
-                # Optional:
-                # "class_embedder": (class_embedder_wo_ddp.state_dict() if class_embedder_wo_ddp else None),
-            }, os.path.join(save_dir, "last.pt"))
+            }
+
+            if vae_wo_ddp is not None:
+                last_ckpt["vae"] = vae_wo_ddp.state_dict()
+
+            if class_embedder_wo_ddp is not None:
+                last_ckpt["class_embedder"] = class_embedder_wo_ddp.state_dict()
+
+            torch.save(last_ckpt, os.path.join(save_dir, "last.pt"))
             logger.info(f"Saved LAST checkpoint: {os.path.join(save_dir, 'last.pt')}")
+            # Saving the last checkpoint using a checkpoint library and with optional vae and class_embedder. SK 03Dec2025
+
 
 
 if __name__ == '__main__':
