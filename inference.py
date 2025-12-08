@@ -24,9 +24,41 @@ from train import parse_args
 from pathlib import Path
 import json
 
+import torchmetrics
+from torchmetrics.image.fid import FrechetInceptionDistance
+from torchmetrics.image.inception import InceptionScore
+
 logger = get_logger(__name__)
 
 # Command to Run: python inference.py --config configs/ddpm.yaml --ckpt path/to/checkpoint.pt
+# Command to Run: python inference.py --config configs/ddpm.yaml --ckpt path/to/checkpoint.pt --use_ddim False
+def compute_metrics_in_batches(gen_images, real_images, device, batch_size=500):
+    # Clear CUDA cache before starting
+    torch.cuda.empty_cache()
+    
+    fid = FrechetInceptionDistance(feature=2048, normalize=False).to(device)
+    inception = InceptionScore(feature="logits_unbiased", normalize=False, splits=10).to(device)
+    
+    # Process real images in batches
+    for i in range(0, len(real_images), batch_size):
+        batch = real_images[i:i+batch_size].to(device)
+        fid.update(batch, real=True)
+    
+    # Process generated images in batches
+    for i in range(0, len(gen_images), batch_size):
+        # Ensure we don't go out of bounds
+        batch = gen_images[i:i+batch_size].to(device)
+        
+        fid.update(batch, real=False)
+        inception.update(batch)
+        
+        # Optional: clear cache after each batch
+        torch.cuda.empty_cache()
+    
+    fid_score = fid.compute()
+    is_mean, is_std = inception.compute()
+    
+    return fid_score, is_mean, is_std
 
 def main():
     # parse arguments
@@ -217,7 +249,7 @@ def main():
     
     # TODO: load validation images as reference batch
     # Concatenate list of small batches into one huge tensor [5000, 3, 128, 128] i.e. [N_gen, 3, H, W]
-    all_gen_tensor = torch.cat(all_images, dim=0).to(device)
+    #all_gen_tensor = torch.cat(all_images, dim=0).to(device)
     
     # Load Validation Data:
     
@@ -239,7 +271,8 @@ def main():
 
     real_images_list = []
     total_real = 0
-    max_real = all_gen_tensor.shape[0]  # match number of generated images
+    #max_real = all_gen_tensor.shape[0]  # match number of generated images
+    max_real = sum(batch.shape[0] for batch in all_images)
     for imgs, _ in val_loader:
         if total_real >= max_real:
             break
@@ -253,14 +286,19 @@ def main():
     # COMPUTE FID AND INCEPTION SCORE
     # TODO: using torchmetrics for evaluation, check the documents of torchmetrics
     logger.info("Computing FID and Inception Score...")
-    import torchmetrics 
-    
-    from torchmetrics.image.fid import FrechetInceptionDistance
-    from torchmetrics.image.inception import InceptionScore
     
     # TODO: compute FID and IS
     # Initialize Metrics (feature=2048 is standard for FID)
     # FID: expects (N, 3, H, W), dtype uint8 or float in [0, 1]
+    fid_score, is_mean, is_std = compute_metrics_in_batches(
+        torch.cat(all_images, dim=0),  # Combine generated images into one tensor
+        all_real_tensor,  # Real images tensor
+        device,
+        batch_size=250 
+    )
+    logger.info(f"FID: {fid_score.item():.4f}")
+    logger.info(f"Inception Score: {is_mean.item():.4f} ± {is_std.item():.4f}")
+    '''
     fid = FrechetInceptionDistance(
         feature=2048,
         normalize=False,  # since we are passing uint8 [0, 255]
@@ -281,10 +319,34 @@ def main():
 
     fid_score = fid.compute()
     is_mean, is_std = inception.compute()
-
+    '''
     
     #Save a sample grid of generated images
-    
+    save_dir = Path(args.ckpt).parent.parent / "inference"
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Saving sample generated images to {save_dir}")
+
+    # Save first batch (or first 64 images from first few batches)
+    first_batch = all_images[0]
+    torchvision.utils.save_image(
+        first_batch[:64] / 255.0,  # scale to [0, 1], take up to 64 images
+        save_dir / "generated_samples.png",
+        nrow=10,
+        normalize=False,
+    )
+
+    # Save a few per-batch grids to quickly inspect 
+    max_extra_grids = min(len(all_images), 5)
+    for idx in range(max_extra_grids):
+        batch_tensor = all_images[idx]
+        torchvision.utils.save_image(
+            batch_tensor / 255.0,
+            save_dir / f"generated_batch_{idx:02d}.png",
+            nrow=10,
+            normalize=False,
+        )
+    '''
     save_dir = Path(args.ckpt).parent.parent / "inference"
     
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -308,7 +370,7 @@ def main():
             nrow=10,
             normalize=False,
         )
-    
+    '''
     #save scores to a json file
     scores = {
         "FID": fid_score.item(),
@@ -333,12 +395,7 @@ def main():
     })
 
     wandb.finish()
-
-    logger.info(f"FID: {fid_score.item():.4f}")
-    logger.info(f"Inception Score: {is_mean.item():.4f} ± {is_std.item():.4f}")
-        
     
-
 
 if __name__ == '__main__':
     main()
