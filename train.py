@@ -720,9 +720,9 @@ def main():
 
         # -----------   END EARLY STOPPING LOGIC
 
-        # =====================================================
-        # FID/IS EVALUATION (if enabled)
-        # =====================================================
+        
+        # FID/IS EVALUATION
+        
         if args.eval_fid_is and (epoch + 1) % args.eval_frequency == 0:
             if is_primary(args):
                 logger.info(f"\n{'='*60}")

@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH -p GPU-shared
 #SBATCH -t 1-00:00:00
-#SBATCH --gpus=h100-80:1
+#SBATCH --gpus=1
 #SBATCH --job-name=idl_infer
 #SBATCH -A cis250280p
 #SBATCH --output=/jet/home/skothare/F25-Deep-Learning-Project/slurm/inference/%j.out
@@ -10,7 +10,7 @@
 #SBATCH --export=ALL
 
 source /etc/profile.d/modules.sh
-
+# gpus are typically called as "--gpus=h100-80:1"
 echo "HOSTNAME: $(hostname)"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
@@ -57,8 +57,15 @@ mkdir -p experiments
 
 # Example 2: DiT + VAE + CFG (latent)
 CMD="python inference.py \
-  --config /jet/home/skothare/F25-Deep-Learning-Project/experiments/exp-4-imagenet100_ddim/config.yaml \
-  --ckpt /jet/home/skothare/F25-Deep-Learning-Project/experiments/exp-4-imagenet100_ddim/checkpoints/best.pt"
+  --config /jet/home/skothare/F25-Deep-Learning-Project/experiments/exp-7-SK-dit_latent_cfg-1900-04Dec/config.yaml \
+  --ckpt   /jet/home/skothare/F25-Deep-Learning-Project/experiments/exp-7-SK-dit_latent_cfg-1900-04Dec/checkpoints/best.pt \
+  --latent_ddpm True \
+  --unet_in_size 32 \
+  --use_cfg True \
+  --use_ddim True \
+  --model_type dit \
+  --cfg_guidance_scale 1.2 \
+  --run_name infer_exp7-dit-1900-04Dec"
 
 echo "Running command:"
 echo "    $CMD"
