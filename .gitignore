@@ -12,6 +12,7 @@ experiments/
 experiments
 wandb/
 slurm/
+denoising_gifs/
 
 # Python caches
 __pycache__/
