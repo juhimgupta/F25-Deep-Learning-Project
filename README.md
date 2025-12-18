@@ -233,7 +233,7 @@ This project was developed for **11-685: Introduction to Deep Learning** (Fall 2
 * **Divya Kilari** - *Computational Biology Dept, CMU*
 * **Sumeet Kothare** - *Computational Biology Dept, CMU*
 
-*Attributions: Base starter code structure provided by course instructors. Models (DDPM, DDIT, VAE, CFG, and DiT) and the corresponding training and inference plumbing and code implemented by the team.*
+*Attributions: Base starter code structure provided by course instructors. Models (DDPM, DDIM, VAE, CFG, and DiT) and the corresponding training and inference plumbing and code implemented by the team.*
 
 ## 📚 References
 
