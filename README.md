@@ -2,12 +2,12 @@
 ### Comprehensive Evaluation of Diffusion & Transformer-Based Generative Models
 
 <div align="center">
-  <img src="F25-Deep-Learning-Project/images/all_models_panel.gif" alt="Panel showing generated images across all models, and denoising steps" width="90%">
+  <img src="images/all_models_panel.gif" alt="Panel showing generated images across all models, and denoising steps" width="90%">
   
   <p>Comparison of Generated Samples and Denoising Trajectories for All Models.</p>
 </div>
 
-![Comparison of FID vs. IS Scores across DDPM, DDIM, and DiT Models](F25-Deep-Learning-Project/images/title_image_results.png)
+![Comparison of FID vs. IS Scores across DDPM, DDIM, and DiT Models](images/title_image_results.png)
 
 ## Project Motivation
 Diffusion models have become the dominant framework for generative image synthesis, yet the practical trade-offs between sampling efficiency, architecture choice (U-Net vs. Transformer), and perceptual fidelity often remain abstract. 
