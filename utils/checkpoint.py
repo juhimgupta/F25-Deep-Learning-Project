@@ -23,7 +23,8 @@ def load_checkpoint(unet, scheduler, vae=None, class_embedder=None, optimizer=No
     print("loading checkpoint")
     
     # Load the checkpoint
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, weights_only=False) # best.pt contains more than just tensors. Got unpickling error without setting weights_only=False. -SK 08Dec2025.
+
     
     # Print out available keys for debugging
     print("Available checkpoint keys:", checkpoint.keys())
@@ -36,11 +37,17 @@ def load_checkpoint(unet, scheduler, vae=None, class_embedder=None, optimizer=No
     if vae is not None and 'vae' in checkpoint:
         print("loading vae")
         vae.load_state_dict(checkpoint['vae'])
+    elif vae is not None:
+        print("WARNING: vae is requested but not found in checkpoint")
+
     
-    if class_embedder is not None and 'class_embedder' in checkpoint:
-        print("loading class_embedder")
-        class_embedder.load_state_dict(checkpoint['class_embedder'])
-    
+    if class_embedder is not None:
+        if 'class_embedder' in checkpoint:
+            print("loading class_embedder")
+            class_embedder.load_state_dict(checkpoint['class_embedder'])
+        else:
+            print("WARNING: class_embedder not found in checkpoint - "
+                  "CFG will not match training. Consider disabling CFG at inference for this run.")
     # Return some metadata if available
     return checkpoint.get('epoch'), checkpoint.get('val_loss')
     
@@ -50,32 +57,30 @@ def save_checkpoint(unet, scheduler, vae=None, class_embedder=None, optimizer=No
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    # Define checkpoint file name
     checkpoint_path = os.path.join(save_dir, f'checkpoint_epoch_{epoch}.pth')
 
     checkpoint = {
-        'unet_state_dict': unet.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
+        'unet': unet.state_dict(),
+        'scheduler': scheduler.state_dict(),
     }
-    
+
     if vae is not None:
-        checkpoint['vae_state_dict'] = vae.state_dict()
-    
+        checkpoint['vae'] = vae.state_dict()
+
     if class_embedder is not None:
-        checkpoint['class_embedder_state_dict'] = class_embedder.state_dict()
-    
+        checkpoint['class_embedder'] = class_embedder.state_dict()
+
     if optimizer is not None:
-        checkpoint['optimizer_state_dict'] = optimizer.state_dict()
-    
+        checkpoint['optimizer'] = optimizer.state_dict()
+
     if epoch is not None:
         checkpoint['epoch'] = epoch
-    
-    # Save checkpoint
+
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at {checkpoint_path}")
-    
-    # Manage checkpoint history
+
     manage_checkpoints(save_dir, keep_last_n=10)
+
 
 
 def manage_checkpoints(save_dir, keep_last_n=10):

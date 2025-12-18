@@ -43,12 +43,12 @@ class PatchEmbed(nn.Module):
             stride=patch_size
         )
 
-        def forward(self, x):
-            # x: [B, C, H, W]
-            x = self.proj(x)   # [B, d_model, H/P, W/P]
-            x = x.flatten(2) # [B, d_model, N]
-            x = x.transpose(1, 2)  # [B, N, d_model]
-            return x
+    def forward(self, x):
+        # x: [B, C, H, W]
+        x = self.proj(x)   # [B, d_model, H/P, W/P]
+        x = x.flatten(2) # [B, d_model, N]
+        x = x.transpose(1, 2)  # [B, N, d_model]
+        return x
         
 class PatchUnembed(nn.Module):
     """
@@ -168,13 +168,31 @@ class DiTBlock(nn.Module):
             nn.Linear(int(d_model * mlp_ratio), d_model),
         )
 
+        self.save_attn = False # when True, we keep last attn weights
+        self.attn_last_weights = None # [B, n_heads, N, N]
+
     def forward(self, x):
         """
         x: [B, N, d_model]
         """
         # Self-attention with residual
-        h = self.attn(self.norm1(x), self.norm1(x), self.norm1(x), need_weights=False)[0]
-        x = x + h
+        norm_x = self.norm1(x)
+
+        # Ask MHA for attention weights only if they are required
+        attn_out, attn_weights = self.attn(
+            norm_x, norm_x, norm_x,
+            need_weights=self.save_attn,
+            average_attn_weights=False,  # keep [B, n_heads, N, N]
+        )
+
+        #  stash the weights if in visualization mode
+        if self.save_attn:
+            # detach so they don't hold graph references
+            self.attn_last_weights = attn_weights.detach()
+        else:
+            self.attn_last_weights = None
+
+        x = x + attn_out
 
         # MLP with residual
         h = self.mlp(self.norm2(x))

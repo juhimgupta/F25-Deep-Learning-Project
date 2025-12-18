@@ -75,13 +75,28 @@ class DDPMPipeline:
         # Initialize optional CFG embeddings (to avoid UnboundLocalError) - SK 29Oct2025
         class_embeds = None
         uncond_embeds = None
+        """
+        Changed the implementation below since we received a TypeError: full_like(): argument 'input' (position 1) must be Tensor, not list.
+
+        classes were an integer passed in inference.py. Hence, the changes below capture the different cases to ensure that classes is always a torch.Tensor before calling uncond_classes. -SK 08Dec2025 
+        """
         if classes is not None:
             # convert classes to tensor
             if isinstance(classes, int):
                 classes = [classes] * batch_size
-            elif isinstance(classes, list):
+
+            # CHANGED: this used to be "elif isinstance(classes, list):""
+            if isinstance(classes, list):  # CHANGED
                 assert len(classes) == batch_size, "Length of classes must be equal to batch_size"
-                classes = torch.tensor(classes, device=device)
+                classes = torch.tensor(classes, device=device, dtype=torch.long)  # CHANGED: ensure tensor + dtype
+
+            # NEW- handle the case where classes is already a tensor
+            elif isinstance(classes, torch.Tensor):# NEW
+                classes = classes.to(device=device, dtype=torch.long)# NEw
+
+            # NEW: safety net for unexpected types
+            else: # NEW
+                raise TypeError(f"Unsupported type for classes: {type(classes)}")  # NEW
             
             # TODO: get uncond classes (unconditional classes (same shape as classes but all zeros))
             #uncond_classes = torch.zeros_like(classes)
@@ -91,6 +106,7 @@ class DDPMPipeline:
             class_embeds = self.class_embedder(classes)
             # TODO: get uncon class embeddings
             uncond_embeds = self.class_embedder(uncond_classes)
+
         
         # TODO: starts with random noise (generate initial random noise tensor)
         image = randn_tensor(image_shape, generator=generator, device=device) # randn_tensor(image_shape, generator=generator, device=device)
